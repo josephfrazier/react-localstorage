@@ -1,4 +1,5 @@
 'use strict';
+const localForage = require('localforage')
 var warn = require('./lib/warning');
 
 var hasLocalStorage = true;
@@ -34,12 +35,12 @@ module.exports = Component => {
      *
      * If the page unloads, this may not fire, so we also mount the function to onbeforeunload.
      */
-    componentWillUnmount() {
+    async componentWillUnmount() {
       if (super.componentWillUnmount) {
         super.componentWillUnmount()
       }
 
-      this.saveStateToLocalStorage();
+      await this.saveStateToLocalStorage();
 
       // Remove beforeunload handler if it exists.
       if (this.__react_localstorage_beforeunload) {
@@ -48,29 +49,29 @@ module.exports = Component => {
     }
 
     saveStateToLocalStorage () {
-      saveStateToLocalStorage(this)
+      return saveStateToLocalStorage(this)
     }
 
     /**
      * Load data.
      * This seems odd to do this on componentDidMount, but it prevents server checksum errors.
-     * This is because the server has no way to know what is in your localStorage. So instead
+     * This is because the server has no way to know what is in your localForage. So instead
      * of breaking the checksum and causing a full rerender, we instead change the component after mount
      * for an efficient diff.
      */
     componentDidMount() {
-      loadStateFromLocalStorage(this);
+      loadStateFromLocalStorage(this).then(() => {
+        // We won't get a componentWillUnmount event if we close the tab or refresh, so add a listener
+        // and synchronously populate LS.
+        if (hasLocalStorage && this.__react_localstorage_loaded && global.addEventListener) {
+          this.__react_localstorage_beforeunload = this.componentWillUnmount.bind(this);
+          global.addEventListener('beforeunload', this.__react_localstorage_beforeunload);
+        }
 
-      // We won't get a componentWillUnmount event if we close the tab or refresh, so add a listener
-      // and synchronously populate LS.
-      if (hasLocalStorage && this.__react_localstorage_loaded && global.addEventListener) {
-        this.__react_localstorage_beforeunload = this.componentWillUnmount.bind(this);
-        global.addEventListener('beforeunload', this.__react_localstorage_beforeunload);
-      }
-
-      if (super.componentDidMount) {
-        super.componentDidMount()
-      }
+        if (super.componentDidMount) {
+          super.componentDidMount()
+        }
+      })
     }
   }
 
@@ -79,18 +80,22 @@ module.exports = Component => {
   return LocalStorageComponent
 };
 
-function loadStateFromLocalStorage(component) {
+async function loadStateFromLocalStorage(component) {
   if (!hasLocalStorage) return;
   var key = getLocalStorageKey(component);
   if (key === false) return;
-  try {
-    var storedState = JSON.parse(ls.getItem(key));
-    if (storedState) component.setState(storedState);
-  } catch(e) {
-    // eslint-disable-next-line no-console
-    if (console) console.warn("Unable to load state for", getDisplayName(component), "from localStorage.");
-  }
-  component.__react_localstorage_loaded = true;
+  return localForage.getItem(key)
+    .then(JSON.parse)
+    .then(storedState => {
+      if (storedState) component.setState(storedState);
+    })
+    .catch(e => {
+      // eslint-disable-next-line no-console
+      if (console) console.warn("Unable to load state for", getDisplayName(component), "from localForage.");
+    })
+    .then(() => {
+      component.__react_localstorage_loaded = true;
+    })
 }
 
 
@@ -98,7 +103,7 @@ function saveStateToLocalStorage(component) {
   if (!hasLocalStorage || !component.__react_localstorage_loaded) return;
   var key = getLocalStorageKey(component);
   if (key === false) return;
-  ls.setItem(key, JSON.stringify(getSyncState(component)));
+  return localForage.setItem(key, JSON.stringify(getSyncState(component)));
 }
 
 function getDisplayName(component) {

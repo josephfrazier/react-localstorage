@@ -3,7 +3,7 @@ const TestUtil = require('react-dom/test-utils');
 const withLocalStorage = require('../react-localstorage');
 const assert = require('assert');
 
-const ls = global.localStorage;
+const ls = require('localforage')
 describe("suite", function() {
   beforeEach(function(){
     ls.clear();
