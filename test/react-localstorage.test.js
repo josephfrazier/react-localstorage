@@ -6,9 +6,9 @@ const assert = require('assert');
 const ls = require('localforage')
 describe("suite", function() {
   beforeEach(function(){
-    ls.clear();
     // Cheap way to make the warn function throw so we can catch it easily
     console.warn = function() { throw new Error([].slice.call(arguments).join(' ')); };
+    return ls.clear();
   });
 
   class _ComponentUseDisplayName extends React.Component {
@@ -20,29 +20,31 @@ describe("suite", function() {
   const ComponentUseDisplayName = withLocalStorage(_ComponentUseDisplayName)
 
   // Change in v1; we now do this on componentWillUnmount
-  it("should not save after each setState", function(done) {
+  it("should not save after each setState", async function(done) {
     const component = TestUtil.renderIntoDocument(<ComponentUseDisplayName />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world'
-    }, function() {
+    }, async function() {
       assert.equal(
         null,
-        ls.getItem('component1')
+        await ls.getItem('component1')
       );
       done();
     });
     component.componentWillUnmount();
   });
 
-  it("should use displayName to store into localstorage", function() {
+  it("should use displayName to store into localstorage", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseDisplayName />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('component1')
+      await ls.getItem('component1')
     );
   });
 
@@ -57,15 +59,16 @@ describe("suite", function() {
   }
   const ComponentUseStorageKey = withLocalStorage(_ComponentUseStorageKey)
 
-  it("should use this.props.localStorageKey to store into localstorage", function() {
+  it("should use this.props.localStorageKey to store into localstorage", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseStorageKey />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       hello: 'moon'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({hello: 'moon'}),
-      ls.getItem('component-key')
+      await ls.getItem('component-key')
     );
   });
 
@@ -80,15 +83,16 @@ describe("suite", function() {
   }
   const ComponentUseMethod = withLocalStorage(_ComponentUseMethod)
 
-  it("should use this.getLocalStorageKey() to store into localstorage", function() {
+  it("should use this.getLocalStorageKey() to store into localstorage", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseMethod />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       rubber: 'ducky'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({rubber: 'ducky'}),
-      ls.getItem('ComponentUseMethodDynamicSuffix')
+      await ls.getItem('ComponentUseMethodDynamicSuffix')
     );
   });
 
@@ -100,15 +104,16 @@ describe("suite", function() {
   }
   const ComponentWithNoSetting = withLocalStorage(_ComponentWithNoSetting)
 
-  it("should use ComponentWithNoSetting to store into localstorage", function() {
+  it("should use ComponentWithNoSetting to store into localstorage", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentWithNoSetting />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       hello: 'star'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({hello: 'star'}),
-      ls.getItem('ComponentWithNoSetting') // NOTICE: not `react-localstorage` because of displayName
+      await ls.getItem('ComponentWithNoSetting') // NOTICE: not `react-localstorage` because of displayName
     );
   });
 
@@ -123,17 +128,18 @@ describe("suite", function() {
   }
   const ComponentUseStateFilter = withLocalStorage(_ComponentUseStateFilter)
 
-  it("should only use state keys that match filter", function() {
+  it("should only use state keys that match filter", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseStateFilter />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world',
       b: 'bar',
       c: 'shouldNotSync'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world', 'b': 'bar'}),
-      ls.getItem('componentStateFilter')
+      await ls.getItem('componentStateFilter')
     );
   });
 
@@ -148,17 +154,18 @@ describe("suite", function() {
   }
   const ComponentUseStateFilterFunc = withLocalStorage(_ComponentUseStateFilterFunc)
 
-  it("should only use state keys that match filter function", function() {
+  it("should only use state keys that match filter function", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseStateFilterFunc />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world',
       b: 'bar',
       c: 'shouldNotSync'
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world', 'b': 'bar'}),
-      ls.getItem('componentStateFilterFunc')
+      await ls.getItem('componentStateFilterFunc')
     );
   });
 
@@ -182,62 +189,67 @@ describe("suite", function() {
 
   it("should run lifecycle methods of wrapped component", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentWithLifecycle />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     assert.deepEqual(component.state, {a: 'world'})
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world', 'b': 'bar'}),
-      ls.getItem('ComponentWithLifecycle')
+      await ls.getItem('ComponentWithLifecycle')
     );
   });
 
-  it("should shut off LS syncing with localStorageKey=false", function() {
+  it("should shut off LS syncing with localStorageKey=false", async function() {
     const component = TestUtil.renderIntoDocument(<ComponentUseDisplayName />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world',
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('component1')
+      await ls.getItem('component1')
     );
 
     const component2 = TestUtil.renderIntoDocument(<ComponentUseDisplayName localStorageKey={false} />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component2.setState({
       a: 'hello',
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('component1')
+      await ls.getItem('component1')
     );
   });
 
-  it("should support function as LS key", function() {
+  it("should support function as LS key", async function() {
     const component = TestUtil.renderIntoDocument(
       <ComponentUseDisplayName localStorageKey={function() { return this.props.otherKey; }} otherKey="jenkees" />
     );
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world',
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('jenkees')
+      await ls.getItem('jenkees')
     );
 
     // Check returning false
     const component2 = TestUtil.renderIntoDocument(<ComponentUseDisplayName localStorageKey={() => false} />);
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component2.setState({
       a: 'hello',
     });
-    component.componentWillUnmount();
+    await component.componentWillUnmount();
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('jenkees')
+      await ls.getItem('jenkees')
     );
   });
 
-  it('should sync on beforeunload, then remove itself', function() {
+  it('should sync on beforeunload, then remove itself', async function() {
     const eventMap = {};
     global.addEventListener = jest.fn((event, cb) => {
       eventMap[event] = cb;
@@ -250,6 +262,7 @@ describe("suite", function() {
     const component = TestUtil.renderIntoDocument(
       <ComponentUseDisplayName localStorageKey="beforeunload" />
     );
+    await new Promise(resolve => setTimeout(resolve)) // allow for componentDidMount() to finish
     component.setState({
       a: 'world',
     });
@@ -257,14 +270,14 @@ describe("suite", function() {
 
     assert.equal(
       null,
-      ls.getItem('beforeunload')
+      await ls.getItem('beforeunload')
     );
 
-    eventMap['beforeunload']();
+    await eventMap['beforeunload']();
 
     assert.equal(
       JSON.stringify({a: 'world'}),
-      ls.getItem('beforeunload')
+      await ls.getItem('beforeunload')
     );
 
     // Should have been removed now
